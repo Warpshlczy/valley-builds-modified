@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <!-- 允许全局双指缩放，包括 alert -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5.0">
-
+<script src="ruffle/ruffle.js"></script>
 <style>
 
 html, body {
@@ -76,17 +76,6 @@ body {
 </div>
 
 <script>
-// ===================== 关键：提前固定配置，必须在加载 ruffle.js 之前定义 =====================
-window.RufflePlayer = window.RufflePlayer || {};
-window.RufflePlayer.config = {
-  forceCDN: false,
-  publicPath: "./ruffle/",
-  wasm: { streaming: false },
-  autoplay: "on",
-  allowScriptAccess: "sameDomain",
-  allowNetworking: "all",
-};
-
 // 检测设备类型
 function isMobileDevice() {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -100,34 +89,20 @@ function isHuaweiOrHarmony() {
 
 // 加载失败提示
 function showLoadError() {
-  let msg = "⚠️ 游戏加载失败！\n\n请检查本地Ruffle文件是否完整";
+  let msg = "⚠️ 游戏加载失败！\n\n请检查网络连接是否正常";
   
   if (isHuaweiOrHarmony()) {
-    msg += "\n\n❗ 华为 / 鸿蒙系统：如本地文件失效，可尝试开启代理";
+    msg += "\n\n❗ 华为 / 鸿蒙系统必须开启代理才能正常运行！";
   } else if (isMobileDevice()) {
-    msg += "\n\n如仍无法加载，请检查文件路径";
+    msg += "\n\n如仍无法加载，请尝试开启代理";
   }
   
   alert(msg);
 }
 
-// 动态加载本地 ruffle.js （核心修复：先配置后加载）
-function loadRuffle() {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = "./ruffle/ruffle.js";
-    script.onload = resolve;
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
-
-// 初始化
 window.onload = async () => {
   try {
-    // 先加载 Ruffle，再初始化游戏
-    await loadRuffle();
-
+    // 先检测 Ruffle 是否存在
     if (!window.RufflePlayer) {
       showLoadError();
       return;
