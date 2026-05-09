@@ -2,36 +2,31 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<!-- 手机端适配 -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
 body {
   margin: 0;
   min-height: 100vh;
   display: flex;
-  justify-content: center; 
-  align-items: center;    
+  justify-content: center;
+  align-items: center;
   background: #222;
-  overflow: hidden;
 }
 
-/* 电脑端：固定游戏尺寸 | 手机端：自适应全屏（不溢出） */
 #game {
+  /* 电脑端固定尺寸 */
   width: 760px;
   height: 600px;
-  max-width: 100%;
-  max-height: 100vh;
-  aspect-ratio: 760 / 600;
+  /* 手机端自动缩小适配屏幕 */
+  max-width: 100vw;
+  max-height: 85vh;
 }
 
-/* 统一适配Ruffle渲染容器，禁止强制宽高导致报错 */
-#game ruffle-embed,
 #game ruffle-player,
 #game canvas {
   width: 100% !important;
   height: 100% !important;
   display: block;
-  border: none;
 }
 </style>
 </head>
@@ -39,52 +34,60 @@ body {
 <div id="game"></div>
 
 <script>
-// 全局预配置Ruffle（解决WASM下载报错+鸿蒙浏览器兼容，核心修复）
+// 全局Ruffle基础配置 解决WASM下载失败
 window.RufflePlayer = window.RufflePlayer || {};
 window.RufflePlayer.config = {
   autoplay: "on",
   allowScriptAccess: "sameDomain",
-  allowNetworking: "all",
-  // 强制使用CDN加载WASM，彻底杜绝下载失败
-  forceCDN: true
+  allowNetworking: "all"
 };
 
-// 检测设备
 const isMobile = /Android|iPhone|iPad|iPod|HarmonyOS/i.test(navigator.userAgent);
 const gameContainer = document.getElementById('game');
+const GAME_WIDTH = 760;
+const GAME_HEIGHT = 600;
 
-// ===================== 手机端：官方稳定CDN（彻底修复WASM报错） =====================
+// 延迟弹窗，等游戏加载完再弹，避免手机阻塞黑屏
+function showTips() {
+  alert("某大学的七位各学科工程师受世界首富聘请先后前往荒岛山谷进行开发和建设。\r\n  \r\n因此您需要选择决定工程师们前往岛屿的顺序。\r\n \r\n");
+  alert("不同的排列组合将会影响工程师们的等级和最终岛屿开发的程度和结局。\r\n");
+  alert("注意工程师们的上岛顺序很重要！工程师们之间的联动配合程度会影响建设的程度和结局。");
+  alert("游戏存在多个普通结局，一个完美结局，一个彩蛋结局。");
+  alert("祝您玩得开心！加载完后点击按钮开始。");
+}
+
+// 统一加载逻辑：手机用CDN，电脑用本地ruffle
 if (isMobile) {
     const cdnScript = document.createElement('script');
-    // 替换为Ruffle官方稳定CDN，兼容所有手机/鸿蒙浏览器
-    cdnScript.src = "https://unpkg.com/ruffle-rs/ruffle@latest/dist/ruffle.js";
-    cdnScript.onload = () => {
-        // 标准嵌入标签，无报错、无WASM加载失败
-        gameContainer.innerHTML = `<ruffle-embed src="game.swf"></ruffle-embed>`;
-    };
-    document.head.appendChild(cdnScript);
-} 
-// ===================== 电脑端：保留你的自托管逻辑（无修改） =====================
-else {
-    const localScript = document.createElement('script');
-    localScript.src = "ruffle/ruffle.js";
-    localScript.onload = async () => {
+    // 官方稳定CDN
+    cdnScript.src = "https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle/ruffle.js";
+    cdnScript.onload = async function() {
+        // 不用embed标签！统一用player创建，避免黑屏
         const player = window.RufflePlayer.newest().createPlayer();
         gameContainer.appendChild(player);
         await player.load({
             url: "game.swf",
-            viewport: { width: 760, height: 600 }
+            viewport: { width: GAME_WIDTH, height: GAME_HEIGHT }
         });
+        // 游戏渲染完成后再弹提示
+        setTimeout(showTips, 800);
+    };
+    document.head.appendChild(cdnScript);
+} else {
+    // 电脑端保留你原来本地部署
+    const localScript = document.createElement('script');
+    localScript.src = "ruffle/ruffle.js";
+    localScript.onload = async function() {
+        const player = window.RufflePlayer.newest().createPlayer();
+        gameContainer.appendChild(player);
+        await player.load({
+            url: "game.swf",
+            viewport: { width: GAME_WIDTH, height: GAME_HEIGHT }
+        });
+        setTimeout(showTips, 500);
     };
     document.head.appendChild(localScript);
 }
-
-// ===================== 弹窗提示 =====================
-alert("某大学的七位各学科工程师受世界首富聘请先后前往荒岛山谷进行开发和建设。\r\n  \r\n因此您需要选择决定工程师们前往岛屿的顺序。\r\n \r\n")
-alert("不同的排列组合将会影响工程师们的等级和最终岛屿开发的程度和结局。\r\n")
-alert("注意工程师们的上岛顺序很重要！工程师们之间的联动配合程度会影响建设的程度和结局。")
-alert("游戏存在多个普通结局，一个完美结局，一个彩蛋结局。")
-alert("祝您玩得开心！加载完后点击按钮开始。")
 </script>
 </body>
 </html>
