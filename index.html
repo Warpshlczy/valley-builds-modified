@@ -2,51 +2,78 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<!-- 添加移动端视口设置，允许双指缩放 -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=10.0, user-scalable=yes">
+<!-- 视口设置：只对移动设备生效，电脑端忽略 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=10.0, minimum-scale=0.1, user-scalable=yes">
 <script src="ruffle/ruffle.js"></script>
 <style>
 
-body {
+html, body {
   margin: 0;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center; 
-  align-items: center;    
+  padding: 0;
+  width: 100%;
+  height: 100%;
   background: #222;
-  /* 防止移动端双击缩放和长按选择 */
-  touch-action: manipulation;
-  -webkit-user-select: none;
-  user-select: none;
+}
+
+/* 电脑端默认样式：居中显示游戏 */
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 移动设备专用样式 */
+@media (pointer: coarse) {
+  body {
+    display: block;
+    overflow: auto;
+  }
+  
+  #scroll-container {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  #zoom-container {
+    transform-origin: center center;
+    touch-action: none !important;
+  }
+  
+  * {
+    touch-action: pan-x pan-y pinch-zoom !important;
+  }
 }
 
 #game {
-  /* 移动端自适应宽度 */
-  max-width: 100vw;
-  max-height: 100vh;
+  width: 760px;
+  height: 600px;
+  background: #000;
 }
 
 #game ruffle-player {
   width: 760px !important;
   height: 600px !important;
   display: block;
-  /* 移动端保持比例缩放 */
-  max-width: 100% !important;
-  max-height: 100vh !important;
-  object-fit: contain;
 }
 
 #game canvas {
-  width: 100% !important;
-  height: 100% !important;
+  width: 760px !important;
+  height: 600px !important;
   display: block;
-  /* 确保canvas也支持缩放 */
-  touch-action: auto !important;
 }
 </style>
 </head>
 <body>
-<div id="game"></div>
+<!-- 这些容器只在移动设备上有特殊作用，电脑端会被忽略 -->
+<div id="scroll-container">
+  <div id="zoom-container">
+    <div id="game"></div>
+  </div>
+</div>
 
 <script>
 window.onload = async () => {
@@ -57,7 +84,77 @@ window.onload = async () => {
     url: "game.swf",
     viewport: { width: 760, height: 600 }
   });
+  
+  // 只在移动设备上初始化双指缩放功能
+  if (isMobileDevice()) {
+    initPinchZoom();
+  }
 };
+
+// 检测是否为移动设备
+function isMobileDevice() {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+}
+
+// 自定义双指缩放实现（仅移动设备执行）
+function initPinchZoom() {
+  const zoomContainer = document.getElementById('zoom-container');
+  let scale = 1.0;
+  let lastDistance = 0;
+  let isPinching = false;
+  
+  // 计算两个触摸点之间的距离
+  function getDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  
+  // 应用缩放
+  function applyScale() {
+    zoomContainer.style.transform = `scale(${scale})`;
+  }
+  
+  // 触摸开始事件
+  zoomContainer.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      isPinching = true;
+      lastDistance = getDistance(e.touches);
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, { passive: false });
+  
+  // 触摸移动事件
+  zoomContainer.addEventListener('touchmove', (e) => {
+    if (isPinching && e.touches.length === 2) {
+      const currentDistance = getDistance(e.touches);
+      const scaleChange = currentDistance / lastDistance;
+      
+      // 限制缩放范围
+      scale = Math.max(0.1, Math.min(10.0, scale * scaleChange));
+      applyScale();
+      
+      lastDistance = currentDistance;
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, { passive: false });
+  
+  // 触摸结束事件
+  zoomContainer.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) {
+      isPinching = false;
+    }
+  });
+  
+  // 双击重置缩放
+  zoomContainer.addEventListener('dblclick', () => {
+    scale = 1.0;
+    applyScale();
+  });
+}
+
     alert("某大学的七位各学科工程师受世界首富聘请先后前往荒岛山谷进行开发和建设。\r\n  \r\n因此您需要选择决定工程师们前往岛屿的顺序。\r\n \r\n")
     alert("不同的排列组合将会影响工程师们的等级和最终岛屿开发的程度和结局。\r\n")
     alert("注意工程师们的上岛顺序很重要！工程师们之间的联动配合程度会影响建设的程度和结局。")
