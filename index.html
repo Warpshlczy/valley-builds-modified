@@ -5,28 +5,6 @@
 <!-- 允许全局双指缩放，包括 alert -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5.0">
 
-<!-- ======================================
-【核心修改】强制Ruffle只读本地WASM, 禁止远程下载
-======================================= -->
-<script>
-window.RufflePlayer = window.RufflePlayer || {};
-window.RufflePlayer.config = {
-  // 彻底禁用CDN回退（手机端核心！绝不远程下载WASM）
-  forceCDN: false,
-  // 指定本地资源根目录（你的ruffle文件夹）
-  publicPath: "./ruffle/",
-  // 鸿蒙/华为兼容：禁用WASM流式加载
-  wasm: { streaming: false },
-  // 基础配置不变
-  autoplay: "on",
-  allowScriptAccess: "sameDomain",
-  allowNetworking: "all",
-};
-</script>
-
-<!-- 你原有的本地Ruffle引入（不动） -->
-<script src="ruffle/ruffle.js"></script>
-
 <style>
 
 html, body {
@@ -98,6 +76,17 @@ body {
 </div>
 
 <script>
+// ===================== 关键：提前固定配置，必须在加载 ruffle.js 之前定义 =====================
+window.RufflePlayer = window.RufflePlayer || {};
+window.RufflePlayer.config = {
+  forceCDN: false,
+  publicPath: "./ruffle/",
+  wasm: { streaming: false },
+  autoplay: "on",
+  allowScriptAccess: "sameDomain",
+  allowNetworking: "all",
+};
+
 // 检测设备类型
 function isMobileDevice() {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -122,9 +111,23 @@ function showLoadError() {
   alert(msg);
 }
 
+// 动态加载本地 ruffle.js （核心修复：先配置后加载）
+function loadRuffle() {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = "./ruffle/ruffle.js";
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+// 初始化
 window.onload = async () => {
   try {
-    // 先检测 Ruffle 是否存在
+    // 先加载 Ruffle，再初始化游戏
+    await loadRuffle();
+
     if (!window.RufflePlayer) {
       showLoadError();
       return;
