@@ -2,9 +2,11 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<!-- 允许全局双指缩放，包括 alert -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5.0">
 <script src="ruffle/ruffle.js"></script>
 <style>
+
 html, body {
   margin: 0;
   padding: 0;
@@ -13,16 +15,21 @@ html, body {
   background: #222;
   overflow: hidden;
 }
+
+/* 电脑端默认：居中游戏 */
 body {
   display: flex;
   justify-content: center;
   align-items: center;
 }
+
+/* 移动设备 */
 @media (pointer: coarse) {
   body {
     display: block;
     overflow: hidden;
   }
+  
   #game-wrapper {
     width: 100vw;
     height: 100vh;
@@ -30,6 +37,7 @@ body {
     -webkit-overflow-scrolling: touch;
     position: relative;
   }
+  
   #zoom-container {
     width: 760px;
     height: 600px;
@@ -40,12 +48,20 @@ body {
     transform: translate(-50%, -50%) scale(1);
   }
 }
+
 #game {
   width: 760px;
   height: 600px;
   background: #000;
 }
-#game ruffle-player, #game canvas {
+
+#game ruffle-player {
+  width: 760px !important;
+  height: 600px !important;
+  display: block;
+}
+
+#game canvas {
   width: 760px !important;
   height: 600px !important;
   display: block;
@@ -60,23 +76,33 @@ body {
 </div>
 
 <script>
-// 关键配置：只禁用远程更新，不强制指定wasm路径，让JS自动识别
-window.RufflePlayerConfig = {
-  updater: false,                  // 关闭自动更新
-  allowScriptAccess: false,
-  forceHttps: false
-};
-
+// 检测设备类型
 function isMobileDevice() {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 }
 
+// 检测华为 / 鸿蒙系统
+function isHuaweiOrHarmony() {
+  const ua = navigator.userAgent.toLowerCase();
+  return ua.includes("huawei") || ua.includes("harmony");
+}
+
+// 加载失败提示
 function showLoadError() {
-  alert("⚠️ 游戏加载失败！\n请清除浏览器缓存后重试");
+  let msg = "⚠️ 游戏加载失败！\n\n请检查网络连接是否正常";
+  
+  if (isHuaweiOrHarmony()) {
+    msg += "\n\n❗ 华为 / 鸿蒙系统必须开启代理才能正常运行！";
+  } else if (isMobileDevice()) {
+    msg += "\n\n如仍无法加载，请尝试开启代理";
+  }
+  
+  alert(msg);
 }
 
 window.onload = async () => {
   try {
+    // 先检测 Ruffle 是否存在
     if (!window.RufflePlayer) {
       showLoadError();
       return;
@@ -85,6 +111,7 @@ window.onload = async () => {
     const player = window.RufflePlayer.newest().createPlayer();
     document.getElementById("game").appendChild(player);
 
+    // 加载游戏，超时 15 秒
     await Promise.race([
       player.load({
         url: "game.swf",
@@ -93,12 +120,12 @@ window.onload = async () => {
       new Promise((_, reject) => setTimeout(() => reject("timeout"), 15000))
     ]);
 
+    // 手机端开启缩放
     if (isMobileDevice()) {
       initPinchZoom();
     }
 
   } catch (err) {
-    console.error(err);
     showLoadError();
   }
 };
@@ -115,8 +142,10 @@ function initPinchZoom() {
   function calculateInitialScale() {
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
-    const scaleX = screenWidth / 760;
-    const scaleY = screenHeight / 600;
+    const gameWidth = 760;
+    const gameHeight = 600;
+    const scaleX = screenWidth / gameWidth;
+    const scaleY = screenHeight / gameHeight;
     return Math.min(scaleX, scaleY, 1.0);
   }
   
@@ -143,7 +172,8 @@ function initPinchZoom() {
   document.addEventListener('touchmove', (e) => {
     if (isPinching && e.touches.length === 2) {
       const currentDistance = getDistance(e.touches);
-      scale = Math.max(0.3, Math.min(5.0, scale * (currentDistance / lastDistance)));
+      const scaleChange = currentDistance / lastDistance;
+      scale = Math.max(0.3, Math.min(5.0, scale * scaleChange));
       applyTransform();
       lastDistance = currentDistance;
     }
@@ -153,6 +183,7 @@ function initPinchZoom() {
     isPinching = false;
   });
 
+  // 双击重置
   document.addEventListener('dblclick', () => {
     scale = calculateInitialScale();
     applyTransform();
@@ -160,14 +191,14 @@ function initPinchZoom() {
 }
 
 // 游戏提示
-alert("某大学的七位学科工程师受聘先后前往荒岛山谷进行开发和建设。\n\n因此您需要选择决定工程师们前往岛屿的顺序。\n\n");
-alert("不同的排列组合将会影响工程师们的等级和最终岛屿开发的程度和结局。\n");
-alert("注意工程师们的上岛顺序很重要！工程师们之间的联动配合程度会影响建设的程度和结局。");
-alert("游戏存在多个普通结局，一个完美结局，一个彩蛋结局。");
-alert("Remastered by: 老六 - Mokie");
+alert("某大学的七位学科工程师受聘先后前往荒岛山谷进行开发和建设。\r\n  \r\n因此您需要选择决定工程师们前往岛屿的顺序。\r\n \r\n")
+alert("不同的排列组合将会影响工程师们的等级和最终岛屿开发的程度和结局。\r\n")
+alert("注意工程师们的上岛顺序很重要！工程师们之间的联动配合程度会影响建设的程度和结局。")
+alert("游戏存在多个普通结局，一个完美结局，一个彩蛋结局。")
+alert("Remastered by: 老六 - Mokie")
 
 if (isMobileDevice()) {
-  alert("手机端提示：双指捏合缩放游戏画面，双击重置大小。");
+  alert("手机端提示：您可以使用双指捏合手势放大缩小游戏画面，双击屏幕可重置大小。");
 }
 
 alert("祝您玩得开心！加载完后点击按钮开始。");
