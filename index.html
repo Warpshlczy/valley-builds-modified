@@ -2,8 +2,8 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<!-- 禁用浏览器自动缩放，完全控制缩放行为 -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- 允许全局双指缩放，包括 alert -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5.0">
 <script src="ruffle/ruffle.js"></script>
 <style>
 
@@ -16,14 +16,14 @@ html, body {
   overflow: hidden;
 }
 
-/* 电脑端默认样式：居中显示游戏 */
+/* 电脑端默认：居中游戏 */
 body {
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-/* 移动设备专用样式 */
+/* 移动设备 */
 @media (pointer: coarse) {
   body {
     display: block;
@@ -45,7 +45,6 @@ body {
     top: 50%;
     left: 50%;
     transform-origin: center center;
-    /* 初始居中 */
     transform: translate(-50%, -50%) scale(1);
   }
 }
@@ -77,27 +76,61 @@ body {
 </div>
 
 <script>
-window.onload = async () => {
-  const player = window.RufflePlayer.newest().createPlayer();
-  document.getElementById("game").appendChild(player);
-
-  await player.load({
-    url: "game.swf",
-    viewport: { width: 760, height: 600 }
-  });
-  
-  // 只在移动设备上初始化双指缩放功能
-  if (isMobileDevice()) {
-    initPinchZoom();
-  }
-};
-
-// 检测是否为移动设备
+// 检测设备类型
 function isMobileDevice() {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 }
 
-// 改进的双指缩放实现（解决非电脑端视图问题）
+// 检测华为 / 鸿蒙系统
+function isHuaweiOrHarmony() {
+  const ua = navigator.userAgent.toLowerCase();
+  return ua.includes("huawei") || ua.includes("harmony");
+}
+
+// 加载失败提示
+function showLoadError() {
+  let msg = "⚠️ 游戏加载失败！\n\n请检查网络连接是否正常";
+  
+  if (isHuaweiOrHarmony()) {
+    msg += "\n\n❗ 华为 / 鸿蒙系统必须开启代理才能正常运行！";
+  } else if (isMobileDevice()) {
+    msg += "\n\n如仍无法加载，请尝试开启代理";
+  }
+  
+  alert(msg);
+}
+
+window.onload = async () => {
+  try {
+    // 先检测 Ruffle 是否存在
+    if (!window.RufflePlayer) {
+      showLoadError();
+      return;
+    }
+
+    const player = window.RufflePlayer.newest().createPlayer();
+    document.getElementById("game").appendChild(player);
+
+    // 加载游戏，超时 15 秒
+    await Promise.race([
+      player.load({
+        url: "game.swf",
+        viewport: { width: 760, height: 600 }
+      }),
+      new Promise((_, reject) => setTimeout(() => reject("timeout"), 15000))
+    ]);
+
+    // 手机端开启缩放
+    if (isMobileDevice()) {
+      initPinchZoom();
+    }
+
+  } catch (err) {
+    showLoadError();
+  }
+};
+
+// 双指缩放
 function initPinchZoom() {
   const zoomContainer = document.getElementById('zoom-container');
   const gameWrapper = document.getElementById('game-wrapper');
@@ -106,109 +139,69 @@ function initPinchZoom() {
   let lastDistance = 0;
   let isPinching = false;
   
-  // 计算初始合适的缩放比例，让游戏在手机上完整显示
   function calculateInitialScale() {
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
     const gameWidth = 760;
     const gameHeight = 600;
-    
     const scaleX = screenWidth / gameWidth;
     const scaleY = screenHeight / gameHeight;
-    
-    // 使用较小的比例，确保游戏完全显示在屏幕内
     return Math.min(scaleX, scaleY, 1.0);
   }
   
-  // 应用缩放和位置
   function applyTransform() {
     zoomContainer.style.transform = `translate(-50%, -50%) scale(${scale})`;
-    
-    // 调整滚动区域大小，确保放大后可以滚动到所有角落
-    const scaledWidth = 760 * scale;
-    const scaledHeight = 600 * scale;
-    
-    gameWrapper.style.width = `${Math.max(scaledWidth, window.innerWidth)}px`;
-    gameWrapper.style.height = `${Math.max(scaledHeight, window.innerHeight)}px`;
-    
-    // 保持居中
-    if (scaledWidth < window.innerWidth) {
-      gameWrapper.scrollLeft = (scaledWidth - window.innerWidth) / 2;
-    }
-    if (scaledHeight < window.innerHeight) {
-      gameWrapper.scrollTop = (scaledHeight - window.innerHeight) / 2;
-    }
   }
   
-  // 计算两个触摸点之间的距离
   function getDistance(touches) {
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
     return Math.sqrt(dx * dx + dy * dy);
   }
   
-  // 初始化：自动调整到合适的初始大小
   scale = calculateInitialScale();
   applyTransform();
   
-  // 触摸开始事件
   document.addEventListener('touchstart', (e) => {
     if (e.touches.length === 2) {
       isPinching = true;
       lastDistance = getDistance(e.touches);
-      e.preventDefault();
-      e.stopPropagation();
     }
-  }, { passive: false });
+  });
   
-  // 触摸移动事件
   document.addEventListener('touchmove', (e) => {
     if (isPinching && e.touches.length === 2) {
       const currentDistance = getDistance(e.touches);
       const scaleChange = currentDistance / lastDistance;
-      
-      // 限制缩放范围：0.3倍到5倍
       scale = Math.max(0.3, Math.min(5.0, scale * scaleChange));
       applyTransform();
-      
       lastDistance = currentDistance;
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }, { passive: false });
-  
-  // 触摸结束事件
-  document.addEventListener('touchend', (e) => {
-    if (e.touches.length < 2) {
-      isPinching = false;
     }
   });
   
-  // 双击重置到初始合适大小
+  document.addEventListener('touchend', () => {
+    isPinching = false;
+  });
+
+  // 双击重置
   document.addEventListener('dblclick', () => {
     scale = calculateInitialScale();
     applyTransform();
   });
-  
-  // 窗口大小改变时重新计算
-  window.addEventListener('resize', () => {
-    applyTransform();
-  });
 }
 
-// 游戏说明提示
+// 游戏提示
 alert("某大学的七位学科工程师受聘先后前往荒岛山谷进行开发和建设。\r\n  \r\n因此您需要选择决定工程师们前往岛屿的顺序。\r\n \r\n")
 alert("不同的排列组合将会影响工程师们的等级和最终岛屿开发的程度和结局。\r\n")
 alert("注意工程师们的上岛顺序很重要！工程师们之间的联动配合程度会影响建设的程度和结局。")
 alert("游戏存在多个普通结局，一个完美结局，一个彩蛋结局。")
 alert("Remastered by: 老六 - Mokie")
 
-// 只在手机端显示双指缩放提示
 if (isMobileDevice()) {
-  alert("手机端提示：您可以使用双指捏合手势放大缩小游戏画面，双击屏幕可重置大小。")
+  alert("手机端提示：您可以使用双指捏合手势放大缩小游戏画面，双击屏幕可重置大小。");
 }
 
-alert("祝您玩得开心！加载完后点击按钮开始。")
+alert("祝您玩得开心！加载完后点击按钮开始。");
 </script>
 </body>
 </html>
