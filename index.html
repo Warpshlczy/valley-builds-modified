@@ -4,7 +4,29 @@
 <meta charset="UTF-8">
 <!-- 允许全局双指缩放，包括 alert -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=5.0">
+
+<!-- ======================================
+【核心修改】强制Ruffle只读本地WASM, 禁止远程下载
+======================================= -->
+<script>
+window.RufflePlayer = window.RufflePlayer || {};
+window.RufflePlayer.config = {
+  // 彻底禁用CDN回退（手机端核心！绝不远程下载WASM）
+  forceCDN: false,
+  // 指定本地资源根目录（你的ruffle文件夹）
+  publicPath: "./ruffle/",
+  // 鸿蒙/华为兼容：禁用WASM流式加载
+  wasm: { streaming: false },
+  // 基础配置不变
+  autoplay: "on",
+  allowScriptAccess: "sameDomain",
+  allowNetworking: "all",
+};
+</script>
+
+<!-- 你原有的本地Ruffle引入（不动） -->
 <script src="ruffle/ruffle.js"></script>
+
 <style>
 
 html, body {
@@ -89,12 +111,12 @@ function isHuaweiOrHarmony() {
 
 // 加载失败提示
 function showLoadError() {
-  let msg = "⚠️ 游戏加载失败！\n\n请检查网络连接是否正常";
+  let msg = "⚠️ 游戏加载失败！\n\n请检查本地Ruffle文件是否完整";
   
   if (isHuaweiOrHarmony()) {
-    msg += "\n\n❗ 华为 / 鸿蒙系统必须开启代理才能正常运行！";
+    msg += "\n\n❗ 华为 / 鸿蒙系统：如本地文件失效，可尝试开启代理";
   } else if (isMobileDevice()) {
-    msg += "\n\n如仍无法加载，请尝试开启代理";
+    msg += "\n\n如仍无法加载，请检查文件路径";
   }
   
   alert(msg);
