@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<!-- 关键：禁用浏览器自动缩放，让我们完全控制缩放行为 -->
+<!-- 禁用浏览器自动缩放，完全控制缩放行为 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <script src="ruffle/ruffle.js"></script>
 <style>
@@ -196,11 +196,19 @@ function initPinchZoom() {
   });
 }
 
-    alert("某大学的七位各学科工程师受世界首富聘请先后前往荒岛山谷进行开发和建设。\r\n  \r\n因此您需要选择决定工程师们前往岛屿的顺序。\r\n \r\n")
-    alert("不同的排列组合将会影响工程师们的等级和最终岛屿开发的程度和结局。\r\n")
-    alert("注意工程师们的上岛顺序很重要！工程师们之间的联动配合程度会影响建设的程度和结局。")
-    alert("游戏存在多个普通结局，一个完美结局，一个彩蛋结局。")
-    alert("祝您玩得开心！加载完后点击按钮开始。")
+// 游戏说明提示
+alert("某大学的七位学科工程师受聘先后前往荒岛山谷进行开发和建设。\r\n  \r\n因此您需要选择决定工程师们前往岛屿的顺序。\r\n \r\n")
+alert("不同的排列组合将会影响工程师们的等级和最终岛屿开发的程度和结局。\r\n")
+alert("注意工程师们的上岛顺序很重要！工程师们之间的联动配合程度会影响建设的程度和结局。")
+alert("游戏存在多个普通结局，一个完美结局，一个彩蛋结局。")
+alert("Remastered by: 老六 - Mokie")
+
+// 只在手机端显示双指缩放提示
+if (isMobileDevice()) {
+  alert("手机端提示：您可以使用双指捏合手势放大缩小游戏画面，双击屏幕可重置大小。")
+}
+
+alert("祝您玩得开心！加载完后点击按钮开始。")
 </script>
 </body>
 </html>
