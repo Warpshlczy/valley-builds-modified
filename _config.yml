@@ -1,0 +1,4 @@
+include:
+  - '*.wasm'
+mime_types:
+  wasm: application/wasm
