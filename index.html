@@ -2,122 +2,80 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- 手机端适配 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
+
 body {
   margin: 0;
   min-height: 100vh;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  justify-content: center; 
+  align-items: center;    
   background: #222;
 }
 
-#game {
-  width: 760px;
-  height: 600px;
-  max-width: 95vw;
-  max-height: 80vh;
-  aspect-ratio: 760/600;
+#game ruffle-player {
+  width: 760px !important;
+  height: 600px !important;
+  display: block;
 }
 
-#game ruffle-player,
 #game canvas {
   width: 100% !important;
   height: 100% !important;
   display: block;
-  border: none;
-  /* 华为/鸿蒙Canvas渲染关键：强制硬件加速 */
-  transform: translateZ(0);
 }
 
-#loading {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: #fff;
-  font-size: 18px;
-  text-align: center;
-  z-index: 100;
+/* 手机端游戏容器适配 */
+#game {
+  width: 760px;
+  height: 600px;
 }
 </style>
 </head>
 <body>
-<div id="loading">正在加载游戏...</div>
 <div id="game"></div>
 
 <script>
-// 全局基础配置（仅保留必要项，避免冲突）
-window.RufflePlayer = window.RufflePlayer || {};
-window.RufflePlayer.config = {
-  autoplay: "on",
-  allowScriptAccess: "sameDomain",
-  allowNetworking: "all",
-  // 全平台统一用Canvas2D渲染（彻底解决华为/鸿蒙黑屏）
-  preferredRenderer: "canvas"
-};
-
+// 检测设备
 const isMobile = /Android|iPhone|iPad|iPod|HarmonyOS/i.test(navigator.userAgent);
 const gameContainer = document.getElementById('game');
-const loadingIndicator = document.getElementById('loading');
-const GAME_WIDTH = 760;
-const GAME_HEIGHT = 600;
 
-// 游戏提示弹窗
-function showGameTips() {
-  alert("某大学的七位各学科工程师受世界首富聘请先后前往荒岛山谷进行开发和建设。\r\n  \r\n因此您需要选择决定工程师们前往岛屿的顺序。\r\n \r\n");
-  alert("不同的排列组合将会影响工程师们的等级和最终岛屿开发的程度和结局。\r\n");
-  alert("注意工程师们的上岛顺序很重要！工程师们之间的联动配合程度会影响建设的程度和结局。");
-  alert("游戏存在多个普通结局，一个完美结局，一个彩蛋结局。");
-  alert("祝您玩得开心！加载完后点击按钮开始。");
-}
+// ===================== 手机端：原生标签 + CDN（彻底解决WASM报错） =====================
+if (isMobile) {
+    // 加载CDN
+    const cdnScript = document.createElement('script');
+    cdnScript.src = "https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle";
+    document.head.appendChild(cdnScript);
 
-// 统一加载函数
-async function loadGame(scriptUrl) {
-  try {
-    const script = document.createElement('script');
-    script.src = scriptUrl;
-    
-    script.onload = async () => {
-      try {
+    // 手机端用原生嵌入标签（唯一不报错的方案）
+    cdnScript.onload = () => {
+        gameContainer.innerHTML = `<ruffle-embed src="game.swf" width="760" height="600"></ruffle-embed>`;
+    };
+} 
+// ===================== 电脑端：自托管 + 原有代码（防浏览器拦截） =====================
+else {
+    const localScript = document.createElement('script');
+    localScript.src = "ruffle/ruffle.js";
+    localScript.onload = async () => {
         const player = window.RufflePlayer.newest().createPlayer();
         gameContainer.appendChild(player);
-        
-        // 加载游戏（最可靠的方式）
         await player.load({
-          url: "game.swf",
-          viewport: { width: GAME_WIDTH, height: GAME_HEIGHT }
+            url: "game.swf",
+            viewport: { width: 760, height: 600 }
         });
-        
-        // 加载成功：隐藏提示+延迟弹窗
-        loadingIndicator.style.display = 'none';
-        setTimeout(showGameTips, 500);
-      } catch (e) {
-        console.error("游戏加载失败:", e);
-        loadingIndicator.innerHTML = "游戏加载失败<br>请刷新页面重试";
-      }
     };
-    
-    script.onerror = () => {
-      loadingIndicator.innerHTML = "Ruffle加载失败<br>请检查网络连接";
-    };
-    
-    document.head.appendChild(script);
-  } catch (e) {
-    console.error("初始化失败:", e);
-    loadingIndicator.innerHTML = "初始化失败<br>请刷新页面重试";
-  }
+    document.head.appendChild(localScript);
 }
 
-// 执行加载：手机用CDN，电脑用本地
-if (isMobile) {
-  // 使用官方最新稳定版CDN（最可靠）
-  loadGame("https://unpkg.com/ruffle-wasm@latest/dist/ruffle.js");
-} else {
-  // 电脑端保留自托管
-  loadGame("ruffle/ruffle.js");
-}
+// ===================== 你原有的所有弹窗（完全保留） =====================
+alert("某大学的七位各学科工程师受世界首富聘请先后前往荒岛山谷进行开发和建设。\r\n  \r\n因此您需要选择决定工程师们前往岛屿的顺序。\r\n \r\n")
+alert("不同的排列组合将会影响工程师们的等级和最终岛屿开发的程度和结局。\r\n")
+alert("注意工程师们的上岛顺序很重要！工程师们之间的联动配合程度会影响建设的程度和结局。")
+alert("游戏存在多个普通结局，一个完美结局，一个彩蛋结局。")
+alert("祝您玩得开心！加载完后点击按钮开始。")
 </script>
 </body>
 </html>
+这是我的代码，你帮我修改下吧
