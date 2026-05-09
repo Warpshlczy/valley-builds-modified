@@ -2,8 +2,8 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<!-- 视口设置：只对移动设备生效，电脑端忽略 -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=10.0, minimum-scale=0.1, user-scalable=yes">
+<!-- 关键：禁用浏览器自动缩放，让我们完全控制缩放行为 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <script src="ruffle/ruffle.js"></script>
 <style>
 
@@ -13,6 +13,7 @@ html, body {
   width: 100%;
   height: 100%;
   background: #222;
+  overflow: hidden;
 }
 
 /* 电脑端默认样式：居中显示游戏 */
@@ -26,25 +27,26 @@ body {
 @media (pointer: coarse) {
   body {
     display: block;
-    overflow: auto;
+    overflow: hidden;
   }
   
-  #scroll-container {
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  #game-wrapper {
+    width: 100vw;
+    height: 100vh;
+    overflow: scroll;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
   }
   
   #zoom-container {
+    width: 760px;
+    height: 600px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
     transform-origin: center center;
-    touch-action: none !important;
-  }
-  
-  * {
-    touch-action: pan-x pan-y pinch-zoom !important;
+    /* 初始居中 */
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 
@@ -68,8 +70,7 @@ body {
 </style>
 </head>
 <body>
-<!-- 这些容器只在移动设备上有特殊作用，电脑端会被忽略 -->
-<div id="scroll-container">
+<div id="game-wrapper">
   <div id="zoom-container">
     <div id="game"></div>
   </div>
@@ -96,12 +97,48 @@ function isMobileDevice() {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 }
 
-// 自定义双指缩放实现（仅移动设备执行）
+// 改进的双指缩放实现（解决非电脑端视图问题）
 function initPinchZoom() {
   const zoomContainer = document.getElementById('zoom-container');
+  const gameWrapper = document.getElementById('game-wrapper');
+  
   let scale = 1.0;
   let lastDistance = 0;
   let isPinching = false;
+  
+  // 计算初始合适的缩放比例，让游戏在手机上完整显示
+  function calculateInitialScale() {
+    const screenWidth = window.innerWidth;
+    const screenHeight = window.innerHeight;
+    const gameWidth = 760;
+    const gameHeight = 600;
+    
+    const scaleX = screenWidth / gameWidth;
+    const scaleY = screenHeight / gameHeight;
+    
+    // 使用较小的比例，确保游戏完全显示在屏幕内
+    return Math.min(scaleX, scaleY, 1.0);
+  }
+  
+  // 应用缩放和位置
+  function applyTransform() {
+    zoomContainer.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    
+    // 调整滚动区域大小，确保放大后可以滚动到所有角落
+    const scaledWidth = 760 * scale;
+    const scaledHeight = 600 * scale;
+    
+    gameWrapper.style.width = `${Math.max(scaledWidth, window.innerWidth)}px`;
+    gameWrapper.style.height = `${Math.max(scaledHeight, window.innerHeight)}px`;
+    
+    // 保持居中
+    if (scaledWidth < window.innerWidth) {
+      gameWrapper.scrollLeft = (scaledWidth - window.innerWidth) / 2;
+    }
+    if (scaledHeight < window.innerHeight) {
+      gameWrapper.scrollTop = (scaledHeight - window.innerHeight) / 2;
+    }
+  }
   
   // 计算两个触摸点之间的距离
   function getDistance(touches) {
@@ -110,13 +147,12 @@ function initPinchZoom() {
     return Math.sqrt(dx * dx + dy * dy);
   }
   
-  // 应用缩放
-  function applyScale() {
-    zoomContainer.style.transform = `scale(${scale})`;
-  }
+  // 初始化：自动调整到合适的初始大小
+  scale = calculateInitialScale();
+  applyTransform();
   
   // 触摸开始事件
-  zoomContainer.addEventListener('touchstart', (e) => {
+  document.addEventListener('touchstart', (e) => {
     if (e.touches.length === 2) {
       isPinching = true;
       lastDistance = getDistance(e.touches);
@@ -126,14 +162,14 @@ function initPinchZoom() {
   }, { passive: false });
   
   // 触摸移动事件
-  zoomContainer.addEventListener('touchmove', (e) => {
+  document.addEventListener('touchmove', (e) => {
     if (isPinching && e.touches.length === 2) {
       const currentDistance = getDistance(e.touches);
       const scaleChange = currentDistance / lastDistance;
       
-      // 限制缩放范围
-      scale = Math.max(0.1, Math.min(10.0, scale * scaleChange));
-      applyScale();
+      // 限制缩放范围：0.3倍到5倍
+      scale = Math.max(0.3, Math.min(5.0, scale * scaleChange));
+      applyTransform();
       
       lastDistance = currentDistance;
       e.preventDefault();
@@ -142,16 +178,21 @@ function initPinchZoom() {
   }, { passive: false });
   
   // 触摸结束事件
-  zoomContainer.addEventListener('touchend', (e) => {
+  document.addEventListener('touchend', (e) => {
     if (e.touches.length < 2) {
       isPinching = false;
     }
   });
   
-  // 双击重置缩放
-  zoomContainer.addEventListener('dblclick', () => {
-    scale = 1.0;
-    applyScale();
+  // 双击重置到初始合适大小
+  document.addEventListener('dblclick', () => {
+    scale = calculateInitialScale();
+    applyTransform();
+  });
+  
+  // 窗口大小改变时重新计算
+  window.addEventListener('resize', () => {
+    applyTransform();
   });
 }
 
