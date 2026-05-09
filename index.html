@@ -2,9 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<!-- 鸿蒙/华为浏览器专属适配meta -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
 body {
   margin: 0;
@@ -13,39 +11,26 @@ body {
   justify-content: center;
   align-items: center;
   background: #222;
-  /* 解决鸿蒙浏览器画布渲染层级问题 */
-  position: relative;
-  z-index: 1;
 }
 
 #game {
-  /* 基础尺寸 */
   width: 760px;
   height: 600px;
-  /* 手机端安全适配（避免状态栏遮挡） */
   max-width: 95vw;
   max-height: 80vh;
-  /* 强制保持游戏比例 */
   aspect-ratio: 760/600;
-  /* 解决华为浏览器渲染裁剪问题 */
-  overflow: visible !important;
-  position: relative;
-  z-index: 2;
 }
 
-/* 统一渲染容器样式（华为浏览器必须显式设置） */
 #game ruffle-player,
 #game canvas {
   width: 100% !important;
   height: 100% !important;
   display: block;
   border: none;
-  /* 强制硬件加速（鸿蒙WebGL兼容关键） */
+  /* 华为/鸿蒙Canvas渲染关键：强制硬件加速 */
   transform: translateZ(0);
-  will-change: transform;
 }
 
-/* 加载提示（避免用户以为卡死） */
 #loading {
   position: absolute;
   top: 50%;
@@ -59,35 +44,27 @@ body {
 </style>
 </head>
 <body>
-<div id="loading">正在加载游戏...<br>华为/鸿蒙手机请稍候</div>
+<div id="loading">正在加载游戏...</div>
 <div id="game"></div>
 
 <script>
-// ===================== 华为/鸿蒙浏览器专属配置（核心修复） =====================
+// 全局基础配置（仅保留必要项，避免冲突）
 window.RufflePlayer = window.RufflePlayer || {};
 window.RufflePlayer.config = {
   autoplay: "on",
   allowScriptAccess: "sameDomain",
   allowNetworking: "all",
-  // 1. 强制使用稳定WASM加载策略（解决华为下载拦截）
-  forceCDN: true,
-  // 2. 禁用WebGL渲染（鸿蒙浏览器WebGL兼容性差，改用Canvas2D兜底）
-  preferredRenderer: "canvas",
-  // 3. 启用华为浏览器兼容模式
-  compatibility: {
-    ignoreSwfVersion: true,
-    legacyStageSize: true
-  }
+  // 全平台统一用Canvas2D渲染（彻底解决华为/鸿蒙黑屏）
+  preferredRenderer: "canvas"
 };
 
 const isMobile = /Android|iPhone|iPad|iPod|HarmonyOS/i.test(navigator.userAgent);
-const isHuaweiHarmony = /HarmonyOS|HMSCore|OCE-AN10|ANE-AL00|LYA-AL00/i.test(navigator.userAgent);
 const gameContainer = document.getElementById('game');
 const loadingIndicator = document.getElementById('loading');
 const GAME_WIDTH = 760;
 const GAME_HEIGHT = 600;
 
-// 延迟弹窗（等游戏完全渲染后再弹，避免阻塞）
+// 游戏提示弹窗
 function showGameTips() {
   alert("某大学的七位各学科工程师受世界首富聘请先后前往荒岛山谷进行开发和建设。\r\n  \r\n因此您需要选择决定工程师们前往岛屿的顺序。\r\n \r\n");
   alert("不同的排列组合将会影响工程师们的等级和最终岛屿开发的程度和结局。\r\n");
@@ -96,101 +73,50 @@ function showGameTips() {
   alert("祝您玩得开心！加载完后点击按钮开始。");
 }
 
-// 华为/鸿蒙手机专属加载逻辑（解决黑屏核心）
-async function loadHuaweiGame() {
+// 统一加载函数
+async function loadGame(scriptUrl) {
   try {
-    // 1. 优先使用华为兼容的CDN源
-    const cdnUrl = "https://unpkg.com/ruffle-rs/ruffle@0.1.0/dist/ruffle.js";
     const script = document.createElement('script');
+    script.src = scriptUrl;
     
     script.onload = async () => {
       try {
-        // 2. 延迟初始化（鸿蒙浏览器需要等待DOM完全稳定）
-        setTimeout(async () => {
-          // 3. 创建Ruffle播放器（标准方式，避免embed标签）
-          const player = window.RufflePlayer.newest().createPlayer();
-          gameContainer.appendChild(player);
-          
-          // 4. 监听渲染成功事件（确保画面显示后再隐藏加载提示）
-          player.addEventListener('load', () => {
-            setTimeout(() => {
-              loadingIndicator.style.display = 'none';
-              // 5. 再延迟弹窗，给画布留足渲染时间
-              setTimeout(showGameTips, 1000);
-            }, 500);
-          });
-          
-          // 6. 加载游戏（添加错误处理，避免静默失败）
-          await player.load({
-            url: "game.swf",
-            viewport: { width: GAME_WIDTH, height: GAME_HEIGHT },
-            // 华为浏览器需要显式允许脚本访问
-            allowScriptAccess: "always"
-          });
-        }, 300); // 鸿蒙DOM稳定延迟
+        const player = window.RufflePlayer.newest().createPlayer();
+        gameContainer.appendChild(player);
+        
+        // 加载游戏（最可靠的方式）
+        await player.load({
+          url: "game.swf",
+          viewport: { width: GAME_WIDTH, height: GAME_HEIGHT }
+        });
+        
+        // 加载成功：隐藏提示+延迟弹窗
+        loadingIndicator.style.display = 'none';
+        setTimeout(showGameTips, 500);
       } catch (e) {
-        console.error("华为/鸿蒙加载失败:", e);
-        alert("游戏加载失败，请刷新页面重试（华为手机建议关闭省流量模式）");
+        console.error("游戏加载失败:", e);
+        loadingIndicator.innerHTML = "游戏加载失败<br>请刷新页面重试";
       }
     };
     
     script.onerror = () => {
-      alert("Ruffle加载失败，请检查网络连接（华为手机请关闭浏览器省流量模式）");
+      loadingIndicator.innerHTML = "Ruffle加载失败<br>请检查网络连接";
     };
     
-    script.src = cdnUrl;
     document.head.appendChild(script);
   } catch (e) {
-    console.error("华为/鸿蒙初始化失败:", e);
+    console.error("初始化失败:", e);
+    loadingIndicator.innerHTML = "初始化失败<br>请刷新页面重试";
   }
 }
 
-// 其他手机加载逻辑
-function loadMobileGame() {
-  const cdnScript = document.createElement('script');
-  cdnScript.src = "https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle/ruffle.js";
-  cdnScript.onload = async () => {
-    const player = window.RufflePlayer.newest().createPlayer();
-    gameContainer.appendChild(player);
-    await player.load({
-      url: "game.swf",
-      viewport: { width: GAME_WIDTH, height: GAME_HEIGHT }
-    });
-    loadingIndicator.style.display = 'none';
-    setTimeout(showGameTips, 800);
-  };
-  document.head.appendChild(cdnScript);
-}
-
-// 电脑端加载逻辑（保留原有）
-function loadDesktopGame() {
-  const localScript = document.createElement('script');
-  localScript.src = "ruffle/ruffle.js";
-  localScript.onload = async () => {
-    const player = window.RufflePlayer.newest().createPlayer();
-    gameContainer.appendChild(player);
-    await player.load({
-      url: "game.swf",
-      viewport: { width: GAME_WIDTH, height: GAME_HEIGHT }
-    });
-    loadingIndicator.style.display = 'none';
-    setTimeout(showGameTips, 500);
-  };
-  document.head.appendChild(localScript);
-}
-
-// 执行对应加载逻辑
+// 执行加载：手机用CDN，电脑用本地
 if (isMobile) {
-  if (isHuaweiHarmony) {
-    // 华为/鸿蒙专属处理
-    loadHuaweiGame();
-  } else {
-    // 其他手机
-    loadMobileGame();
-  }
+  // 使用官方最新稳定版CDN（最可靠）
+  loadGame("https://unpkg.com/ruffle-wasm@latest/dist/ruffle.js");
 } else {
-  // 电脑端
-  loadDesktopGame();
+  // 电脑端保留自托管
+  loadGame("ruffle/ruffle.js");
 }
 </script>
 </body>
