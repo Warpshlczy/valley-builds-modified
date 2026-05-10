@@ -39,7 +39,9 @@ body {
   display: block;
 }
 
-
+/* ====================================== */
+/* 👇 所有移动端专属样式，全部放进媒体查询里 */
+/* ====================================== */
 @media (pointer: coarse) {
   body {
     display: block;
@@ -88,13 +90,13 @@ body {
 </div>
 
 <script>
-// 严格区分真正的移动设备
+// ✅ 改进的设备检测：严格区分真正的移动设备
 function isMobileDevice() {
   const hasTouchScreen = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const isSmallScreen = window.innerWidth < 1024;
   
-  // 触摸屏 + 移动设备UA + 小屏幕
+  // 必须同时满足：有触摸屏 + 移动设备UA + 小屏幕
   return hasTouchScreen && isMobileUA && isSmallScreen;
 }
 
@@ -127,32 +129,13 @@ window.onload = async () => {
     const player = window.RufflePlayer.newest().createPlayer();
     document.getElementById("game").appendChild(player);
 
-    // 加载SWF文件
     await Promise.race([
       player.load({
         url: "game.swf",
-        viewport: { width: 760, height: 600 },
-        autoplay: true 
+        viewport: { width: 760, height: 600 }
       }),
       new Promise((_, reject) => setTimeout(() => reject("timeout"), 15000))
     ]);
-
-   
-    try {
-      await player.play();
-      console.log("游戏自动开始成功");
-    } catch (e) {
-      console.log("自动播放被浏览器阻止，等待用户点击");
-      
-      const autoStartOnClick = () => {
-        player.play().catch(() => {});
-        document.removeEventListener('click', autoStartOnClick);
-        document.removeEventListener('touchstart', autoStartOnClick);
-      };
-      
-      document.addEventListener('click', autoStartOnClick);
-      document.addEventListener('touchstart', autoStartOnClick);
-    }
 
     if (isMobileDevice()) {
       initPinchZoom();
@@ -235,7 +218,7 @@ alert("Remastered by: 老六 - Mokie")
 if (isMobileDevice()) {
   alert("手机端提示：您可以使用双指捏合手势放大缩小游戏画面，双击屏幕可重置大小。");
 }
-alert("祝您玩得开心！游戏将自动开始。"); // 🔴 更新提示文字
+alert("祝您玩得开心！加载完后点击按钮开始。");
 </script>
 </body>
 </html>
