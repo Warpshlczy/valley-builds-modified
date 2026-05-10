@@ -14,7 +14,7 @@ html, body {
   overflow: hidden;
 }
 
-/* 电脑端默认：居中游戏（核心修复：电脑端不加载缩放容器样式） */
+/* 电脑端默认：直接居中游戏容器 */
 body {
   display: flex;
   justify-content: center;
@@ -39,9 +39,7 @@ body {
   display: block;
 }
 
-/* ====================================== */
-/* 👇 所有移动端专属样式，全部放进媒体查询里（电脑端不生效） */
-/* ====================================== */
+
 @media (pointer: coarse) {
   body {
     display: block;
@@ -65,6 +63,19 @@ body {
     transform-origin: center center;
     transform: translate(-50%, -50%) scale(1);
   }
+  
+  /* 移动端游戏容器不需要固定宽高，由父容器控制 */
+  #game {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+/* 电脑端隐藏移动端专属容器 */
+@media (pointer: fine) {
+  #game-wrapper, #zoom-container {
+    display: contents;
+  }
 }
 
 </style>
@@ -77,9 +88,14 @@ body {
 </div>
 
 <script>
-// 检测设备类型
+// 严格区分真正的移动设备
 function isMobileDevice() {
-  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const hasTouchScreen = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const isSmallScreen = window.innerWidth < 1024;
+  
+  // 触摸屏 + 移动设备UA + 小屏幕
+  return hasTouchScreen && isMobileUA && isSmallScreen;
 }
 
 // 检测华为 / 鸿蒙系统
@@ -111,13 +127,32 @@ window.onload = async () => {
     const player = window.RufflePlayer.newest().createPlayer();
     document.getElementById("game").appendChild(player);
 
+    // 加载SWF文件
     await Promise.race([
       player.load({
         url: "game.swf",
-        viewport: { width: 760, height: 600 }
+        viewport: { width: 760, height: 600 },
+        autoplay: true 
       }),
       new Promise((_, reject) => setTimeout(() => reject("timeout"), 15000))
     ]);
+
+   
+    try {
+      await player.play();
+      console.log("游戏自动开始成功");
+    } catch (e) {
+      console.log("自动播放被浏览器阻止，等待用户点击");
+      
+      const autoStartOnClick = () => {
+        player.play().catch(() => {});
+        document.removeEventListener('click', autoStartOnClick);
+        document.removeEventListener('touchstart', autoStartOnClick);
+      };
+      
+      document.addEventListener('click', autoStartOnClick);
+      document.addEventListener('touchstart', autoStartOnClick);
+    }
 
     if (isMobileDevice()) {
       initPinchZoom();
@@ -128,7 +163,7 @@ window.onload = async () => {
   }
 };
 
-// 双指缩放
+// 双指缩放（仅移动端执行）
 function initPinchZoom() {
   const zoomContainer = document.getElementById('zoom-container');
   const gameWrapper = document.getElementById('game-wrapper');
@@ -164,6 +199,7 @@ function initPinchZoom() {
     if (e.touches.length === 2) {
       isPinching = true;
       lastDistance = getDistance(e.touches);
+      e.preventDefault(); // 防止浏览器默认缩放
     }
   });
   
@@ -174,6 +210,7 @@ function initPinchZoom() {
       scale = Math.max(0.3, Math.min(5.0, scale * scaleChange));
       applyTransform();
       lastDistance = currentDistance;
+      e.preventDefault(); // 防止浏览器默认缩放
     }
   });
   
@@ -187,16 +224,18 @@ function initPinchZoom() {
   });
 }
 
+// 游戏提示
 alert("某大学的七位学科工程师受聘先后前往荒岛山谷进行开发和建设。\r\n  \r\n因此您需要选择决定工程师们前往岛屿的顺序。\r\n \r\n")
 alert("不同的排列组合将会影响工程师们的等级和最终岛屿开发的程度和结局。\r\n")
 alert("注意工程师们的上岛顺序很重要！工程师们之间的联动配合程度会影响建设的程度和结局。")
 alert("游戏存在多个普通结局，一个完美结局，一个彩蛋结局。")
 alert("Remastered by: 老六 - Mokie")
 
+// ✅ 只有真正的移动设备才显示手机端提示
 if (isMobileDevice()) {
   alert("手机端提示：您可以使用双指捏合手势放大缩小游戏画面，双击屏幕可重置大小。");
 }
-alert("祝您玩得开心！加载完后点击按钮开始。");
+alert("祝您玩得开心！游戏将自动开始。"); // 🔴 更新提示文字
 </script>
 </body>
 </html>
